@@ -51,7 +51,7 @@ if (!envValidation.success) {
   console.error("❌ Invalid environment variables:", envValidation.error.flatten())
   throw new Error("Invalid environment variables")
 } else {
-  console.log("✅ Environment variables loaded and validated successfully.")
+  console.log(`✅ ${Object.keys(envValidation.data).length} Environment variables loaded and validated successfully.`)
 }
 
 // Export the parsed/validated env object for use across the app

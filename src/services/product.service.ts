@@ -14,6 +14,8 @@ import { getDb } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
 import recommendationService from "./recommendation.service";
 
+import * as cache from "@/utils/cache";
+
 // --- HELPERS & UTILITIES ---
 
 const getProductFilterOptionsCollection = () => {
@@ -69,61 +71,81 @@ const convertProductToResponseObj = (product: Product): GetProductResponse => {
 
 const getMany = async (searchQuery: string | undefined, filters: ProductFilters, orderBy?: ProductOrderBy, limit?: number) => {
 
-  let products: Product[] = []
+  const cacheKey: string = `products:list:${JSON.stringify({ searchQuery, filters, orderBy, limit })}`;
 
-  if (!searchQuery && Object.values(filters).every(val => (Array.isArray(val) ? val.length === 0 : typeof val === 'boolean' ? val === false : val === undefined)) && !orderBy && !limit) {
+  return cache.getOrSet(cacheKey, async () => {
+    let products: Product[] = []
 
-    products = await productModel().find().toArray() as Product[];
+    if (!searchQuery && Object.values(filters).every(val => (Array.isArray(val) ? val.length === 0 : typeof val === 'boolean' ? val === false : val === undefined)) && !orderBy && !limit) {
 
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pipeline: any[] = [
-      { $match: getProductFilters(filters, searchQuery) },
-      { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
-      getSortStage(orderBy),
-      limit ? { $limit: limit } : {}
-    ];
+      products = await productModel().find().toArray() as Product[];
 
-    products = await productModel().aggregate(pipeline).toArray() as Product[];
-  }
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pipeline: any[] = [
+        { $match: getProductFilters(filters, searchQuery) },
+        { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
+        getSortStage(orderBy),
+        limit ? { $limit: limit } : {}
+      ];
 
-  return products.map(item => convertProductToResponseObj(item));
+      products = await productModel().aggregate(pipeline).toArray() as Product[];
+    }
 
+    return products.map(item => convertProductToResponseObj(item));
+  }, 3600); // Cache for 1 hour
 };
 
 const getPaginated = async (page: number, size: number, searchQuery: string | undefined, filters: ProductFilters, orderBy?: ProductOrderBy) => {
-  const filterQuery = getProductFilters(filters, searchQuery);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pipeline: any[] = [
-    { $match: filterQuery },
-    { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
-    getSortStage(orderBy),
-    { $skip: (page - 1) * size },
-    { $limit: size }
-  ];
+  const cacheKey: string = `products:paginated:${JSON.stringify({ page, size, searchQuery, filters, orderBy })}`;
 
-  const products = await productModel().aggregate(pipeline).toArray();
-  const total = await productModel().countDocuments(filterQuery);
-  const totalPages = Math.ceil(total / size);
+  return cache.getOrSet(cacheKey, async () => {
+    const filterQuery = getProductFilters(filters, searchQuery);
 
-  const pagination: Pagination = { total, size, totalPages, current: page };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pipeline: any[] = [
+      { $match: filterQuery },
+      { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
+      getSortStage(orderBy),
+      { $skip: (page - 1) * size },
+      { $limit: size }
+    ];
 
-  return {
-    product: products.map(item => convertProductToResponseObj(item as Product)),
-    pagination
-  };
+    const products = await productModel().aggregate(pipeline).toArray();
+    const total = await productModel().countDocuments(filterQuery);
+    const totalPages = Math.ceil(total / size);
+
+    const pagination: Pagination = { total, size, totalPages, current: page };
+
+    return {
+      product: products.map(item => convertProductToResponseObj(item as Product)),
+      pagination
+    };
+  }, 3600);
 };
 
 const get = async (id: string) => {
+
   checkValidObjectId(id, messages.product.invalidId);
-  const product: Product | null = await productModel().findOne({ _id: new ObjectId(id) });
-  if (!product) throw new ResponseError(404, messages.product.notFound);
-  return convertProductToResponseObj(product);
+
+  const cacheKey: string = `product:id:${id}`;
+
+  return cache.getOrSet(cacheKey, async () => {
+    const product: Product | null = await productModel().findOne({ _id: new ObjectId(id) });
+    if (!product) throw new ResponseError(404, messages.product.notFound);
+    return convertProductToResponseObj(product);
+  }, 3600);
+
 };
 
 const getProductFilterOptions = async () => {
-  return await getProductFilterOptionsCollection().find().toArray();
+
+  const cacheKey: string = `product:filter_options`;
+
+  return cache.getOrSet(cacheKey, async () => {
+    return await getProductFilterOptionsCollection().find().toArray();
+  }, 3600);
 };
 
 const create = async (body: PostProduct) => {
@@ -163,6 +185,10 @@ const create = async (body: PostProduct) => {
   if (newProduct) {
     await updateFilterOptionsFromProduct();
     // await productVectorService.upsert(newProduct);
+
+    await cache.del("product:filter_options");
+    await cache.clearKeys("products:list:*");
+    await cache.clearKeys("products:paginated:*");
   }
 
   return newProduct;
@@ -210,6 +236,12 @@ const update = async (id: string, body: PutProduct) => {
   await updateFilterOptionsFromProduct();
   // await productVectorService.update(result);
 
+  // Invalidate relevant caches
+  await cache.del(`product:id:${id}`);
+  await cache.del("product:filter_options");
+  await cache.clearKeys("products:list:*");
+  await cache.clearKeys("products:paginated:*");
+
   return convertProductToResponseObj(result);
 };
 
@@ -231,6 +263,13 @@ const updateProductFlags = async (productId: string, flags: { isBestSeller?: boo
   );
 
   if (!result) throw new ResponseError(404, messages.product.notFound);
+
+  // Invalidate relevant caches
+  await cache.del(`product:id:${productId}`);
+  await cache.del("product:filter_options");
+  await cache.clearKeys("products:list:*");
+  await cache.clearKeys("products:paginated:*");
+
   return convertProductToResponseObj(result);
 };
 
@@ -247,6 +286,13 @@ const updateProductDiscount = async (productId: string, discount: number) => {
   );
 
   if (!result) throw new ResponseError(404, messages.product.notFound);
+
+  // Invalidate relevant caches
+  await cache.del(`product:id:${productId}`);
+  await cache.del("product:filter_options");
+  await cache.clearKeys("products:list:*");
+  await cache.clearKeys("products:paginated:*");
+
   return convertProductToResponseObj(result);
 };
 
@@ -259,6 +305,12 @@ const remove = async (id: string) => {
   if (result.image) deleteFile("public\\" + result.image);
   await updateFilterOptionsFromProduct();
   // await productVectorService.remove(id);
+
+  // Invalidate relevant caches
+  await cache.del(`product:id:${id}`);
+  await cache.del("product:filter_options");
+  await cache.clearKeys("products:list:*");
+  await cache.clearKeys("products:paginated:*");
 
   return result;
 };

@@ -1,6 +1,7 @@
 import express, { Application } from "express"
 import cors from "cors"
 import morgan from "morgan"
+import compression from "compression"
 
 // IMPORT ROUTES
 import publicRoutes from "@/routes/public.routes"
@@ -16,6 +17,7 @@ app.use(express.json()) // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })) // Parse URL-encoded bodies
 app.use(express.static("public")) // Serve static files from the "public" directory
 app.use(cors()) // Enable CORS for all origins
+app.use(compression()) // Enable response compression
 
 // Logging Middleware
 if (env.NODE_ENV === "development") {
