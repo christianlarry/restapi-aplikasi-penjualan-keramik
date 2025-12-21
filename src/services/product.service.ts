@@ -69,15 +69,26 @@ const convertProductToResponseObj = (product: Product): GetProductResponse => {
 // --- CORE SERVICE FUNCTIONS ---
 
 const getMany = async (searchQuery: string | undefined, filters: ProductFilters, orderBy?: ProductOrderBy, limit?: number) => {
-  const pipeline: any[] = [
-    { $match: getProductFilters(filters, searchQuery) },
-    { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
-    getSortStage(orderBy),
-    limit ? { $limit: limit } : {}
-  ];
 
-  const products = await productModel().aggregate(pipeline).toArray();
-  return products.map(item => convertProductToResponseObj(item as Product));
+  let products:Product[] = []
+
+  if(!searchQuery && Object.values(filters).every(val => (Array.isArray(val) ? val.length === 0 : typeof val === 'boolean' ? val === false : val === undefined)) && !orderBy && !limit){ 
+
+    products = await productModel().find().toArray() as Product[];
+
+  }else{
+    const pipeline: any[] = [
+      { $match: getProductFilters(filters, searchQuery) },
+      { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
+      getSortStage(orderBy),
+      limit ? { $limit: limit } : {}
+    ];
+  
+    products = await productModel().aggregate(pipeline).toArray() as Product[];
+  }
+  
+  return products.map(item => convertProductToResponseObj(item));
+
 };
 
 const getPaginated = async (page: number, size: number, searchQuery: string | undefined, filters: ProductFilters, orderBy?: ProductOrderBy) => {
