@@ -1,9 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2016",
-    "module": "commonjs",                                /* Specify what module code is generated. */
-    "rootDir": "./src",                                  /* Specify how TypeScript looks up a file from a given module specifier. */
-    "baseUrl": "./",
+    "module": "commonjs",
     "paths": {
       "@/*": ["src/*"],
       "@application/*": ["src/application/*"],
@@ -12,6 +10,7 @@
       "@services/*": ["src/services/*"],
       "@middlewares/*": ["src/middlewares/*"]
     },
+    "baseUrl": "./",
     "outDir": "./dist",                        /* Allow 'import x from y' when a module doesn't have a default export. */
     "esModuleInterop": true,                               /* Disable resolving symlinks to their realpath. This correlates to the same flag in node. */
     "forceConsistentCasingInFileNames": true,
