@@ -1,39 +1,90 @@
-import {Db, MongoClient} from "mongodb"
-import { logger } from "@application/logging"
+import { Db, MongoClient } from "mongodb"
+import { env } from "@/config/env"
+import { logger } from "@/config/logger"
 
-// VAR
-const mongodbUri:string = process.env.MONGODB_URI || ""
-const dbName:string = process.env.MONGODB_DB_NAME || ""
-const strConnSuccess:string = "✅ Connected to MongoDB"
-const strConnFailed:string = "❌ MongoDB Connection Error:"
-const strIsConnected:string = "Already connected to MongoDB"
+let mongoClient: MongoClient | null = null
+let mongoDb: Db | null = null
+let connectPromise: Promise<Db> | null = null
 
-const client = new MongoClient(mongodbUri)
+const createMongoClient = () => {
+  // Prefer explicit options so behavior is predictable in production.
+  // Most other settings (TLS, auth, retryWrites, replicaSet) should be defined in the URI.
+  return new MongoClient(env.MONGODB_URI, {
+    maxPoolSize: 20,
+    minPoolSize: 0,
+    serverSelectionTimeoutMS: 10_000,
+    connectTimeoutMS: 10_000,
+    socketTimeoutMS: 30_000,
+  })
+}
 
-let isConnected = false; // Prevent multiple connections
-let db:Db
+export const connectToMongoDB = async (): Promise<Db> => {
+  if (mongoDb) return mongoDb
+  if (connectPromise) return connectPromise
 
-const connectToMongoDB = async () => {
-  if (isConnected) {
-    logger.info(strIsConnected);
-    return;
-  }
-  
+  connectPromise = (async () => {
+    if (!mongoClient) mongoClient = createMongoClient()
+
+    await mongoClient.connect()
+    mongoDb = mongoClient.db(env.MONGODB_DB_NAME)
+
+    // Health-check to fail fast on bad credentials/cluster issues.
+    await mongoDb.command({ ping: 1 })
+
+    logger.info("✅ Connected to MongoDB")
+    return mongoDb
+  })()
+
   try {
-    await client.connect();
-    isConnected = true;
-    logger.info(strConnSuccess);
-
-    db = client.db(dbName)
-
-  } catch (err) {
-    logger.error(strConnFailed, err);
-    process.exit(1);
+    return await connectPromise
+  } catch (error) {
+    connectPromise = null
+    mongoDb = null
+    if (mongoClient) {
+      try {
+        await mongoClient.close()
+      } catch {
+        // ignore
+      }
+      mongoClient = null
+    }
+    logger.error("❌ MongoDB Connection Error:", error)
+    throw error
   }
-};
+}
 
-export{
-  connectToMongoDB,
-  client,
-  db
+export const getDb = (): Db => {
+  if (!mongoDb) {
+    throw new Error("MongoDB is not connected. Call connectToMongoDB() first.")
+  }
+  return mongoDb
+}
+
+export const getMongoClient = (): MongoClient => {
+  if (!mongoClient) {
+    throw new Error("MongoClient is not initialized. Call connectToMongoDB() first.")
+  }
+  return mongoClient
+}
+
+export const disconnectFromMongoDB = async (): Promise<void> => {
+  // If a connection is in-flight, wait for it to settle so close() doesn't race.
+  if (connectPromise) {
+    try {
+      await connectPromise
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!mongoClient) return
+
+  try {
+    await mongoClient.close()
+    logger.info("MongoDB connection closed")
+  } finally {
+    mongoClient = null
+    mongoDb = null
+    connectPromise = null
+  }
 }

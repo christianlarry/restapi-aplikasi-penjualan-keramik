@@ -1,6 +1,6 @@
-import { db } from "@/application/database"
+import { getDb } from "@/config/mongodb"
 import { User } from "@/interfaces/user.interface"
 
-export const userModel = ()=>{
-  return db.collection<User>("users")
+export const userModel = () => {
+  return getDb().collection<User>("users")
 }

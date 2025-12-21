@@ -16,24 +16,31 @@ const envValidationSchema = z.object({
   // Port the HTTP server will listen on (parsed to number)
   PORT: z.string().transform((val) => parseInt(val, 10)),
 
-  CORS_ORIGIN: z.string().min(1, "CORS origin is required"),
-
   // MongoDB connection information
   // - MONGODB_URI: base connection string (e.g. mongodb://user:pass@host:port)
-  // - MONGODB_NAME: name of the database (can be appended to URI if not included)
+  // - MONGODB_DB_NAME: name of the database (can be appended to URI if not included)
   MONGODB_URI: z.string().min(1, "MongoDB URI is required"),
-  MONGODB_NAME: z.string().min(1, "MongoDB database name is required"),
+  MONGODB_DB_NAME: z.string().min(1, "MongoDB database name is required"),
+
+  // Redis Configuration
+  REDIS_HOST: z.string().min(1, "Redis host is required"),
+  REDIS_PORT: z.string().transform((val) => parseInt(val, 10)),
+  REDIS_PASSWORD: z.string().optional(),
 
   // JWT configuration
   JWT_SECRET: z.string().min(1, "JWT secret is required"),
   // Access token expiration (in minutes) — parsed to number
   JWT_ACCESS_EXPIRATION_MINUTE: z.string().transform((val) => parseInt(val, 10)),
-  JWT_REFRESH_SECRET: z.string().min(1, "JWT refresh secret is required"),
-  JWT_REFRESH_EXPIRATION_DAYS: z.string().transform((val) => parseInt(val, 10)),
 
-  REDIS_HOST: z.string().default("localhost"),
-  REDIS_PORT: z.string().default("6379").transform((val) => parseInt(val, 10)),
-  REDIS_PASSWORD: z.string().optional(),
+  // Pinecone Configuration
+  PINECONE_API_KEY: z.string().min(1, "Pinecone API key is required"),
+  PINECONE_INDEX: z.string().min(1, "Pinecone index is required"),
+
+  // Google API Configuration
+  GOOGLE_API_KEY: z.string().min(1, "Google API key is required"),
+
+  // Frontend Application URL
+  MAIN_APP_BASE_URL: z.string().min(1, "Main app base URL is required"),
 })
 
 // Parse & validate process.env against the schema

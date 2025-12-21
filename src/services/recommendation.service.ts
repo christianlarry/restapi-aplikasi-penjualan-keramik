@@ -1,5 +1,5 @@
-import { genAI } from "@/application/gemini";
-import { pineconeIndex } from "@/application/pinecone";
+import { genAI } from "@/config/gemini";
+import { pineconeIndex } from "@/config/pinecone";
 import { productModel } from "@/models/product.model";
 import { promptValidation } from "@/validations/product.validation";
 import { validate } from "@/validations/validation";

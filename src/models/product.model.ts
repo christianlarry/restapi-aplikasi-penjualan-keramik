@@ -1,6 +1,6 @@
-import { db } from "@/application/database"
+import { getDb } from "@/config/mongodb"
 import { Product } from "@/interfaces/products.interface"
 
 export const productModel = () => {
-  return db.collection<Product>("products")
+  return getDb().collection<Product>("products")
 }

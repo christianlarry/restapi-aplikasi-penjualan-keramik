@@ -1,10 +1,10 @@
-import { logger } from "@/application/logging"
+import { logger } from "@/config/logger"
 import { ResponseError } from "@/errors/response.error"
 import { ValidationError } from "@/errors/validation.error"
 import { responseErr } from "@/utils/response"
 import { NextFunction, Request, Response } from "express"
 
-export const errorMiddleware = (err:Error, req:Request, res:Response, next:NextFunction) => {
+export const errorMiddleware = (err: Error, req: Request, res: Response, next: NextFunction) => {
   if (!err) {
     next()
     return

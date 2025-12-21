@@ -10,15 +10,14 @@ import { checkValidObjectId } from "@/utils/checkValidObjectId";
 import { deleteFile } from "@/utils/deleteFile";
 import { PostProduct, postProductValidation, PutProduct, putProductValidation } from "@/validations/product.validation";
 import { validate } from "@/validations/validation";
-import { db } from "@application/database";
+import { getDb } from "@/config/mongodb";
 import { ObjectId } from "mongodb";
-import productVectorService from "./productVector.service";
 import recommendationService from "./recommendation.service";
 
 // --- HELPERS & UTILITIES ---
 
 const getProductFilterOptionsCollection = () => {
-  return db.collection<ProductFilterOptions>("product_filter_options");
+  return getDb().collection<ProductFilterOptions>("product_filter_options");
 };
 
 const checkProductName = async (productName: string): Promise<boolean> => {
@@ -70,23 +69,24 @@ const convertProductToResponseObj = (product: Product): GetProductResponse => {
 
 const getMany = async (searchQuery: string | undefined, filters: ProductFilters, orderBy?: ProductOrderBy, limit?: number) => {
 
-  let products:Product[] = []
+  let products: Product[] = []
 
-  if(!searchQuery && Object.values(filters).every(val => (Array.isArray(val) ? val.length === 0 : typeof val === 'boolean' ? val === false : val === undefined)) && !orderBy && !limit){ 
+  if (!searchQuery && Object.values(filters).every(val => (Array.isArray(val) ? val.length === 0 : typeof val === 'boolean' ? val === false : val === undefined)) && !orderBy && !limit) {
 
     products = await productModel().find().toArray() as Product[];
 
-  }else{
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pipeline: any[] = [
       { $match: getProductFilters(filters, searchQuery) },
       { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
       getSortStage(orderBy),
       limit ? { $limit: limit } : {}
     ];
-  
+
     products = await productModel().aggregate(pipeline).toArray() as Product[];
   }
-  
+
   return products.map(item => convertProductToResponseObj(item));
 
 };
@@ -94,6 +94,7 @@ const getMany = async (searchQuery: string | undefined, filters: ProductFilters,
 const getPaginated = async (page: number, size: number, searchQuery: string | undefined, filters: ProductFilters, orderBy?: ProductOrderBy) => {
   const filterQuery = getProductFilters(filters, searchQuery);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pipeline: any[] = [
     { $match: filterQuery },
     { $addFields: { finalPrice: { $subtract: ["$price", { $divide: [{ $multiply: ["$price", { $ifNull: ["$discount", 0] }] }, 100] }] } } },
@@ -214,6 +215,7 @@ const update = async (id: string, body: PutProduct) => {
 
 const updateProductFlags = async (productId: string, flags: { isBestSeller?: boolean; isNewArrivals?: boolean }) => {
   checkValidObjectId(productId, messages.product.invalidId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateFields: any = {};
   if (typeof flags.isBestSeller !== "undefined") updateFields.isBestSeller = flags.isBestSeller;
   if (typeof flags.isNewArrivals !== "undefined") updateFields.isNewArrivals = flags.isNewArrivals;
@@ -265,7 +267,7 @@ const getProductRecommendationsByAI = async (prompt: string) => {
   return recommendationService.getRecommendations(prompt);
 };
 
-const getDistinctValues = async (field: keyof Product | "specification.design" | "specification.texture" | "specification.finishing" | "specification.color" | "specification.application" | "specification.size")=>{
+const getDistinctValues = async (field: keyof Product | "specification.design" | "specification.texture" | "specification.finishing" | "specification.color" | "specification.application" | "specification.size") => {
   const distinctFields = await productModel().distinct(field)
 
   return distinctFields

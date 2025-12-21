@@ -1,4 +1,4 @@
-import { pineconeIndex } from "@/application/pinecone";
+import { pineconeIndex } from "@/config/pinecone";
 import { Product } from "@/interfaces/products.interface";
 import embeddingService from "@/services/embedding.service";
 

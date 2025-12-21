@@ -1,7 +1,7 @@
-import { genAI, genAIModel } from "@/application/gemini";
+import { genAI, genAIModel } from "@/config/gemini";
 import { ContentListUnion, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
 import productService from "./product.service";
-import { logger } from "@/application/logging";
+import { logger } from "@/config/logger";
 import { GetProductResponse } from "@/interfaces/products.interface";
 
 interface EnumValues {
@@ -94,12 +94,12 @@ const SYSTEM_INSTRUCTION = `Kamu adalah asisten virtual dari toko "CV Aneka Kera
 - Berikan kombinasi ukuran jika permintaan tidak spesifik contoh ("Ukurannya besar")`;
 
 const EMPTY_PRODUCT_MESSAGES = [
-    "Waduh, maaf banget nih dari CV Aneka Keramik! Kayaknya produk yang kamu cari lagi sembunyi atau belum ada. Coba deh pakai kata kunci lain yang lebih umum, siapa tahu ketemu jodohnya! 😉",
-    "Yah, sayang sekali! Produk dengan spek itu lagi kosong, nih. Tapi jangan khawatir, kami punya banyak koleksi lain yang nggak kalah keren. Coba cari dengan kata kunci berbeda, yuk!",
-    "Hmm, sepertinya produk impianmu lagi nggak ada di stok kami. Maaf ya! Coba deh jelaskan kebutuhanmu dengan cara lain, mungkin aku bisa bantu carikan alternatif terbaik dari CV Aneka Keramik!",
-    "Aduh, maaf ya, produk yang kamu maksud belum ketemu nih. Mungkin lagi di jalan atau speknya terlalu unik! Coba deh cari yang mirip-mirip, koleksi kami banyak banget lho!",
-    "Maaf sekali dari CV Aneka Keramik, produknya belum tersedia saat ini. Tapi tenang, setiap hari ada aja yang baru di sini. Coba lagi dengan kata kunci lain atau cek lagi besok ya!"
-  ];
+  "Waduh, maaf banget nih dari CV Aneka Keramik! Kayaknya produk yang kamu cari lagi sembunyi atau belum ada. Coba deh pakai kata kunci lain yang lebih umum, siapa tahu ketemu jodohnya! 😉",
+  "Yah, sayang sekali! Produk dengan spek itu lagi kosong, nih. Tapi jangan khawatir, kami punya banyak koleksi lain yang nggak kalah keren. Coba cari dengan kata kunci berbeda, yuk!",
+  "Hmm, sepertinya produk impianmu lagi nggak ada di stok kami. Maaf ya! Coba deh jelaskan kebutuhanmu dengan cara lain, mungkin aku bisa bantu carikan alternatif terbaik dari CV Aneka Keramik!",
+  "Aduh, maaf ya, produk yang kamu maksud belum ketemu nih. Mungkin lagi di jalan atau speknya terlalu unik! Coba deh cari yang mirip-mirip, koleksi kami banyak banget lho!",
+  "Maaf sekali dari CV Aneka Keramik, produknya belum tersedia saat ini. Tapi tenang, setiap hari ada aja yang baru di sini. Coba lagi dengan kata kunci lain atau cek lagi besok ya!"
+];
 
 const getProductRecommendations = async (prompt: string) => {
 
@@ -117,20 +117,20 @@ const getProductRecommendations = async (prompt: string) => {
   ]
 
   const config: GenerateContentConfig = {
-      tools: [{
-        functionDeclarations: [productRecommendationsTool({
-          color: colorEnum,
-          design: designEnum,
-          finishing: finishingEnum,
-          texture: textureEnum,
-          recommendedFor: recommendedForEnum
-        })]
-      }],
-      systemInstruction: {
-        role: "system",
-        parts: [{text: SYSTEM_INSTRUCTION}]
-      }
+    tools: [{
+      functionDeclarations: [productRecommendationsTool({
+        color: colorEnum,
+        design: designEnum,
+        finishing: finishingEnum,
+        texture: textureEnum,
+        recommendedFor: recommendedForEnum
+      })]
+    }],
+    systemInstruction: {
+      role: "system",
+      parts: [{ text: SYSTEM_INSTRUCTION }]
     }
+  }
 
   let response = await genAI.models.generateContent({
     model: genAIModel,
@@ -138,7 +138,7 @@ const getProductRecommendations = async (prompt: string) => {
     config,
   })
 
-  let products:GetProductResponse[]|null = null
+  let products: GetProductResponse[] | null = null
 
   while (response.functionCalls && response.functionCalls.length > 0) {
 
@@ -151,11 +151,12 @@ const getProductRecommendations = async (prompt: string) => {
       logger.info(`Model wants to call getProductRecommendations with args:\n${JSON.stringify(functionArgs)}`)
 
       // Handle jika functionArgs kosong
-      if(
-        typeof functionArgs == undefined || 
-        !functionArgs || 
+      if (
+        // eslint-disable-next-line no-constant-binary-expression, valid-typeof
+        typeof functionArgs == undefined ||
+        !functionArgs ||
         Object.keys(functionArgs).length === 0
-      ){
+      ) {
         logger.error("Model failed to call getProductRecommendations")
 
         return {
@@ -172,13 +173,13 @@ const getProductRecommendations = async (prompt: string) => {
       // Cek jika argumen terlalu umum: hanya ada 1 filter, dan filter itu termasuk dalam kategori umum.
       if (argKeys.length === 1 && broadFilterKeys.includes(argKeys[0])) {
         logger.warn("Query is too broad. Asking user for more details.");
-        
+
         // Beri tahu model bahwa query-nya terlalu umum
         functionResponsePart = {
           name: functionName,
-          response: { 
+          response: {
             status: 'QUERY_TOO_BROAD',
-            products: [] 
+            products: []
           }
         };
 
@@ -191,7 +192,7 @@ const getProductRecommendations = async (prompt: string) => {
           color: functionArgs?.color as string[],
           size: functionArgs?.size as { width: number, height: number }[],
           recommended: functionArgs?.recommendedFor as string[],
-          price: functionArgs?.price as { min: number|undefined, max: number|undefined } | undefined
+          price: functionArgs?.price as { min: number | undefined, max: number | undefined } | undefined
         }, undefined, 10)
 
         if (products.length === 0) {
@@ -212,12 +213,12 @@ const getProductRecommendations = async (prompt: string) => {
 
       contents.push(response.candidates![0].content!)
       contents.push({
-        role:"user",
+        role: "user",
         parts: [
-          {functionResponse: functionResponsePart}
+          { functionResponse: functionResponsePart }
         ]
       })
-      
+
       logger.info("Sending function result back to model...");
 
       response = await genAI.models.generateContent({

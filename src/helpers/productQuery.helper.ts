@@ -2,6 +2,7 @@ import { Product, ProductFilters, ProductOrderBy } from "@/interfaces/products.i
 import { Filter } from "mongodb";
 
 export const getProductFilters = (filters: ProductFilters, searchQuery?: string): Filter<Product> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let orArr: any[] = [];
 
   if (filters.size && filters.size.length > 0) {

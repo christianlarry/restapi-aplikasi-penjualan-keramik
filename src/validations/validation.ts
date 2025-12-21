@@ -1,9 +1,8 @@
-import { ResponseError } from "@/errors/response.error"
 import { ValidationError, ValidationErrorItem } from "@/errors/validation.error";
 import { ZodSchema } from "zod"
 
-export const validate = <T>(schema:ZodSchema,data:unknown):T =>{
-  
+export const validate = <T>(schema: ZodSchema, data: unknown): T => {
+
   const result = schema.safeParse(data);
 
   if (!result.success) {

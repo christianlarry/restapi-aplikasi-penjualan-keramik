@@ -1,4 +1,4 @@
-import { genAI } from "@/application/gemini"
+import { genAI } from "@/config/gemini"
 
 const getEmbeddingFromText = async (text: string) => {
   const response = await genAI.models.embedContent({
