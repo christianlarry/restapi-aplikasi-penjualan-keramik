@@ -4,7 +4,10 @@
   "scripts": {
     "build": "tsc && tsc-alias",
     "start": "node dist/main.js",
-    "dev": "nodemon -r tsconfig-paths/register src/main.ts"
+    "dev": "nodemon -r tsconfig-paths/register src/main.ts",
+    "dev:services": "docker compose up -d",
+    "dev:services:down": "docker compose down",
+    "dev:services:logs": "docker compose logs -f --tail=200"
   },
   "keywords": [],
   "author": "Christian Larry",

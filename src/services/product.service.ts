@@ -189,6 +189,7 @@ const create = async (body: PostProduct) => {
     await cache.del("product:filter_options");
     await cache.clearKeys("products:list:*");
     await cache.clearKeys("products:paginated:*");
+
   }
 
   return newProduct;
