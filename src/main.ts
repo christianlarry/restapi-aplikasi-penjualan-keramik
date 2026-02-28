@@ -1,8 +1,8 @@
-import { env } from "./config/env"
+import { env } from "@/core/config/env"
 import { app } from "@/app"
-import { connectToMongoDB, disconnectFromMongoDB } from "./config/mongodb"
-import { logger } from "./config/logger"
-import { disconnectRedis } from "./config/redis"
+import { connectToMongoDB, disconnectFromMongoDB } from "@/core/config/mongodb"
+import { logger } from "@/core/config/logger"
+import { disconnectRedis } from "@/core/config/redis"
 
 const PORT = env.PORT || 3000
 

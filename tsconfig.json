@@ -3,12 +3,7 @@
     "target": "es2016",
     "module": "commonjs",
     "paths": {
-      "@/*": ["src/*"],
-      "@application/*": ["src/application/*"],
-      "@controllers/*": ["src/controllers/*"],
-      "@routes/*": ["src/routes/*"],
-      "@services/*": ["src/services/*"],
-      "@middlewares/*": ["src/middlewares/*"]
+      "@/*": ["src/*"]
     },
     "baseUrl": "./",
     "outDir": "./dist",                        /* Allow 'import x from y' when a module doesn't have a default export. */

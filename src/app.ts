@@ -3,34 +3,28 @@ import cors from "cors"
 import morgan from "morgan"
 import compression from "compression"
 
-// IMPORT ROUTES
-import publicRoutes from "@/routes/public.routes"
-import privateRoutes from "@/routes/private.routes"
-import { errorMiddleware } from "@/middlewares/error.middleware"
-import { authenticateToken } from "@/middlewares/auth.middleware"
-import { env } from "./config/env"
+import apiRoutes from "@/routes/index"
+import { errorMiddleware } from "@/core/middlewares/error.middleware"
+import { env } from "@/core/config/env"
 
-export const app: Application = express() // Create an Express application
+export const app: Application = express()
 
 // Top Middleware
-app.use(express.json()) // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })) // Parse URL-encoded bodies
-app.use(express.static("public")) // Serve static files from the "public" directory
-app.use(cors()) // Enable CORS for all origins
-app.use(compression()) // Enable response compression
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(express.static("public"))
+app.use(cors())
+app.use(compression())
 
 // Logging Middleware
 if (env.NODE_ENV === "development") {
-  app.use(morgan("dev")) // Detailed logging in development
+  app.use(morgan("dev"))
 } else if (env.NODE_ENV === "production") {
-  app.use(morgan("combined")) // Standard Apache combined logging in production
+  app.use(morgan("combined"))
 }
-// app.use(apiRateLimiter) // Rate Limiter Middleware
 
-// Routes
-// ------ Some routes here -------
-app.use("/api", publicRoutes) // Public Routes
-app.use("/api", authenticateToken, privateRoutes) // Private Routes (requires authentication) 
+// Routes — auth is applied per-route inside each module
+app.use("/api", apiRoutes)
 
 // Health Check
 app.get("/health", (_req, res) => {
@@ -38,4 +32,4 @@ app.get("/health", (_req, res) => {
 })
 
 // Bottom Middleware
-app.use(errorMiddleware) // Error Handling Middleware
+app.use(errorMiddleware)
