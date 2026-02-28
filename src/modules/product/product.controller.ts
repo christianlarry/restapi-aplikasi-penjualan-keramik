@@ -6,7 +6,6 @@ import { PostProduct, PutProduct, postProductValidation, putProductValidation } 
 import { responseOk } from "@/core/utils/response";
 import { validate } from "@/core/utils/validate";
 import { FilterQuery, parseQueryArray, parseQuerySizeToArray } from "@/core/utils/queryFormatter";
-import geminiService from "@/modules/recommendation/gemini.service";
 
 const fallbackPaginationSize = 10;
 const fallbackPaginationPage = 1;
@@ -117,16 +116,6 @@ const remove = async (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
-const recommendProducts = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { prompt } = req.body;
-    const result = await geminiService.getProductRecommendations(prompt);
-    responseOk(res, 200, result);
-  } catch (err) {
-    next(err);
-  }
-};
-
 export default {
   getMany,
   get,
@@ -135,6 +124,5 @@ export default {
   update,
   updateProductFlags,
   updateProductDiscount,
-  remove,
-  recommendProducts
+  remove
 };

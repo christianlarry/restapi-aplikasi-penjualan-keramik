@@ -3,6 +3,7 @@ import { app } from "@/app"
 import { connectToMongoDB, disconnectFromMongoDB } from "@/core/config/mongodb"
 import { logger } from "@/core/config/logger"
 import { disconnectRedis } from "@/core/config/redis"
+import chatRepository from "@/modules/recommendation/chat/chat.repository"
 
 const PORT = env.PORT || 3000
 
@@ -11,6 +12,9 @@ let server: ReturnType<typeof app.listen>
 const start = async () => {
   // Connect to MongoDB (fail-fast if connection is invalid)
   await connectToMongoDB()
+
+  // Ensure chat_sessions indexes (TTL + unique sessionId)
+  await chatRepository.ensureIndexes()
 
   server = app.listen(PORT, () => {
     logger.info(`Server up and running at http://localhost:${PORT}`)

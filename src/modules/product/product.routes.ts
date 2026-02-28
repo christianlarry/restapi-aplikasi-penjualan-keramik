@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { authenticateToken } from "@/core/middlewares/auth.middleware";
-import { apiGenAIRateLimiter } from "@/core/middlewares/rateLimiter.middleware";
 import productController from "./product.controller";
 
 const router = Router();
@@ -9,7 +8,6 @@ const router = Router();
 router.get("/", productController.getMany);
 router.get("/filter-options", productController.getProductFilterOptions);
 router.get("/:id", productController.get);
-router.post("/recommendations", apiGenAIRateLimiter, productController.recommendProducts);
 
 // Private routes (protected)
 router.post("/", authenticateToken, productController.add);

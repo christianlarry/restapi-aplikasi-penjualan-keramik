@@ -1,5 +1,5 @@
 import { genAI, genAIModel } from "@/core/config/gemini";
-import { ContentListUnion, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
+import { Content, ContentListUnion, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
 import productService from "@/modules/product/product.service";
 import { logger } from "@/core/config/logger";
 import { GetProductResponse } from "@/modules/product/product.types";
@@ -101,7 +101,16 @@ const EMPTY_PRODUCT_MESSAGES = [
   "Maaf sekali dari CV Aneka Keramik, produknya belum tersedia saat ini. Tapi tenang, setiap hari ada aja yang baru di sini. Coba lagi dengan kata kunci lain atau cek lagi besok ya!"
 ];
 
-const getProductRecommendations = async (prompt: string) => {
+export interface GeminiRecommendationResult {
+  message: string | undefined
+  products: GetProductResponse[] | null
+  updatedContents: Content[]
+}
+
+const getProductRecommendations = async (
+  prompt: string,
+  existingContents: Content[] = []
+): Promise<GeminiRecommendationResult> => {
 
   const designEnum = await productService.getDistinctValues("specification.design")
   const textureEnum = await productService.getDistinctValues("specification.texture")
@@ -109,7 +118,8 @@ const getProductRecommendations = async (prompt: string) => {
   const colorEnum = await productService.getDistinctValues("specification.color")
   const recommendedForEnum = await productService.getDistinctValues("recommended")
 
-  const contents: ContentListUnion = [
+  const contents: Content[] = [
+    ...existingContents,
     {
       role: "user",
       parts: [{ text: prompt }]
@@ -159,7 +169,8 @@ const getProductRecommendations = async (prompt: string) => {
 
         return {
           message: "Maaf ya! Sepertinya kita belum bisa kasih rekomendasi nih. Coba deh jelaskan kebutuhanmu dengan cara lain, mungkin aku bisa bantu carikan alternatif terbaik dari CV Aneka Keramik!",
-          products: []
+          products: [],
+          updatedContents: contents
         }
       }
 
@@ -192,7 +203,8 @@ const getProductRecommendations = async (prompt: string) => {
         if (products.length === 0) {
           return {
             message: EMPTY_PRODUCT_MESSAGES[Math.floor(Math.random() * EMPTY_PRODUCT_MESSAGES.length)],
-            products
+            products,
+            updatedContents: contents
           }
         }
 
@@ -226,9 +238,15 @@ const getProductRecommendations = async (prompt: string) => {
     }
   }
 
+  // Append final model response to contents for history
+  if (response.candidates?.[0]?.content) {
+    contents.push(response.candidates[0].content)
+  }
+
   return {
     message: response.text,
-    products
+    products,
+    updatedContents: contents
   }
 }
 
