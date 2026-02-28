@@ -1,5 +1,5 @@
 import { genAI, genAIModel } from "@/core/config/gemini";
-import { Content, ContentListUnion, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
+import { Content, FunctionDeclaration, GenerateContentConfig, Type } from "@google/genai";
 import productService from "@/modules/product/product.service";
 import { logger } from "@/core/config/logger";
 import { GetProductResponse } from "@/modules/product/product.types";
