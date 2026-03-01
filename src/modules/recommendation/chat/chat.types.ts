@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb"
-import { Content } from "@google/genai"
+import { LLMMessage } from "@/core/types/llm.types"
 import { GetProductResponse } from "@/modules/product/product.types"
 
 export interface ChatTurn {
@@ -12,7 +12,8 @@ export interface ChatTurn {
 export interface ChatSession {
   _id?: ObjectId
   sessionId: string
-  contents: Content[]
+  /** Full conversation history in provider-agnostic format — fed back to engine on next turn */
+  contents: LLMMessage[]
   displayHistory: ChatTurn[]
   lastProducts: GetProductResponse[]
   createdAt: Date

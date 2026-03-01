@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto"
 import { ResponseError } from "@/core/errors/ResponseError"
-import geminiService from "@/modules/recommendation/gemini.service"
+import { getProductRecommendations } from "@/modules/recommendation/recommendation.engine"
 import chatRepository from "./chat.repository"
 import { ChatSession, ChatTurn, MAX_TURNS_PER_SESSION, SESSION_TTL_HOURS } from "./chat.types"
 
@@ -27,7 +27,7 @@ const chat = async (prompt: string, sessionId?: string) => {
       throw new ResponseError(400, `Maximum ${MAX_TURNS_PER_SESSION} turns reached. Please start a new session.`)
     }
 
-    const result = await geminiService.getProductRecommendations(prompt, session.contents)
+    const result = await getProductRecommendations(prompt, session.contents)
 
     const now = new Date()
     const userTurn: ChatTurn = { role: "user", text: prompt, timestamp: now }
@@ -41,7 +41,7 @@ const chat = async (prompt: string, sessionId?: string) => {
     const updatedHistory = [...session.displayHistory, userTurn, assistantTurn]
 
     await chatRepository.updateSession(sessionId, {
-      contents: result.updatedContents,
+      contents: result.updatedMessages,
       displayHistory: updatedHistory,
       lastProducts: result.products ?? [],
       updatedAt: now,
@@ -57,7 +57,7 @@ const chat = async (prompt: string, sessionId?: string) => {
   }
 
   // ── Create new session ──
-  const result = await geminiService.getProductRecommendations(prompt)
+  const result = await getProductRecommendations(prompt)
 
   const now = new Date()
   const newSessionId = randomUUID()
@@ -72,7 +72,7 @@ const chat = async (prompt: string, sessionId?: string) => {
 
   const session: ChatSession = {
     sessionId: newSessionId,
-    contents: result.updatedContents,
+    contents: result.updatedMessages,
     displayHistory: [userTurn, assistantTurn],
     lastProducts: result.products ?? [],
     createdAt: now,
