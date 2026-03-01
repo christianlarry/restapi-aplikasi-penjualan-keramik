@@ -181,6 +181,8 @@ export const getProductRecommendations = async (
       price: args.price as { min?: number; max?: number } | undefined
     }, undefined, 10)
 
+    logger.info(`[Engine] Retrieved ${products.length} products from DB for tool call`)
+
     if (products.length === 0) {
       return {
         message: EMPTY_PRODUCT_MESSAGES[Math.floor(Math.random() * EMPTY_PRODUCT_MESSAGES.length)],

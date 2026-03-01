@@ -47,6 +47,12 @@ export interface LLMMessage {
     name: string
     result: unknown
   }
+  /**
+   * Provider-assigned tool call ID — used by OpenAI-compatible providers (Groq, etc.)
+   * Set on assistant messages with toolCall so the matching tool_result can reference it.
+   * Ignored by Gemini and Ollama.
+   */
+  toolCallId?: string
 }
 
 // ─── Single-turn response ─────────────────────────────────────────────────────

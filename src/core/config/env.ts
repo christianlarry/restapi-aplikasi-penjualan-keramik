@@ -37,11 +37,13 @@ const envValidationSchema = z.object({
   GOOGLE_API_KEY: z.string().min(1, "Google API key is required"),
 
   // LLM Provider — "gemini" (default) or "ollama"
-  LLM_PROVIDER: z.enum(["gemini", "ollama"]).default("gemini"),
+  LLM_PROVIDER: z.enum(["gemini", "ollama", "qroq"]).default("gemini"),
   // LLM Model override — defaults applied per provider if not set
   LLM_MODEL: z.string().optional(),
   // Ollama base URL — only required when LLM_PROVIDER=ollama
   OLLAMA_BASE_URL: z.string().optional().default("http://localhost:11434"),
+  // Qroq API Key — only required when LLM_PROVIDER=qroq
+  QROQ_API_KEY: z.string().optional(),
 
   // Frontend Application URL
   MAIN_APP_BASE_URL: z.string().min(1, "Main app base URL is required"),
