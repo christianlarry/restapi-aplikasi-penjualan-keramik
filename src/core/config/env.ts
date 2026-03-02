@@ -45,6 +45,10 @@ const envValidationSchema = z.object({
   // Qroq API Key — only required when LLM_PROVIDER=qroq
   QROQ_API_KEY: z.string().optional(),
 
+  // Elasticsearch Configuration
+  ELASTICSEARCH_URL: z.string().default("http://localhost:9200"),
+  ELASTICSEARCH_INDEX_PREFIX: z.string().default("penjualan_keramik"),
+
   // Frontend Application URL
   MAIN_APP_BASE_URL: z.string().min(1, "Main app base URL is required"),
 })

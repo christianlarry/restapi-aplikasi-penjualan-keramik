@@ -7,6 +7,8 @@ import * as cache from "@/core/utils/cache";
 import { checkValidObjectId } from "@/core/utils/checkValidObjectId";
 import { deleteFile } from "@/core/utils/deleteFile";
 import { ObjectId, Document } from "mongodb";
+import elasticsearchService from "@/core/services/elasticsearch/elasticsearch.service";
+import { logger } from "@/core/config/logger";
 
 import { productRepository } from "./product.repository";
 import { ProductCacheKeys, invalidateProductCaches } from "./product.cache";
@@ -44,6 +46,32 @@ const getMany = async (searchQuery: string | undefined, filters: ProductFilters,
   const cacheKey = ProductCacheKeys.list({ searchQuery, filters, orderBy, limit });
 
   return cache.getOrSet(cacheKey, async () => {
+    // ── ES search path (when text search is present) ──
+    if (searchQuery) {
+      try {
+        const { ids } = await elasticsearchService.searchProducts({
+          searchQuery, filters, orderBy, size: limit ?? 100
+        });
+
+        if (ids.length === 0) return [];
+
+        // Fetch full data from MongoDB (source of truth)
+        const products = await productRepository.findByIds(ids.map(id => new ObjectId(id)));
+
+        // Preserve ES relevance order (MongoDB $in doesn't guarantee order)
+        const productMap = new Map(products.map(p => [p._id!.toString(), p]));
+        return ids
+          .map(id => productMap.get(id))
+          .filter((p): p is Product => !!p)
+          .map(toResponse);
+
+      } catch (err) {
+        // Graceful degradation — fall back to MongoDB regex search
+        logger.error("[ES] Search failed, falling back to MongoDB:", err);
+      }
+    }
+
+    // ── MongoDB path (no search text, or ES fallback) ──
     const isEmptyQuery = !searchQuery
       && Object.values(filters).every(val => (Array.isArray(val) ? val.length === 0 : typeof val === 'boolean' ? val === false : val === undefined))
       && !orderBy && !limit;
@@ -70,6 +98,33 @@ const getPaginated = async (page: number, size: number, searchQuery: string | un
   const cacheKey = ProductCacheKeys.paginated({ page, size, searchQuery, filters, orderBy });
 
   return cache.getOrSet(cacheKey, async () => {
+    // ── ES search path (when text search is present) ──
+    if (searchQuery) {
+      try {
+        const { ids, total } = await elasticsearchService.searchProducts({
+          searchQuery, filters, orderBy, page, size
+        });
+
+        // Fetch full data from MongoDB
+        const products = await productRepository.findByIds(ids.map(id => new ObjectId(id)));
+
+        // Preserve ES relevance order
+        const productMap = new Map(products.map(p => [p._id!.toString(), p]));
+        const ordered = ids
+          .map(id => productMap.get(id))
+          .filter((p): p is Product => !!p)
+          .map(toResponse);
+
+        const totalPages = Math.ceil(total / size);
+        const pagination: Pagination = { total, size, totalPages, current: page };
+
+        return { product: ordered, pagination };
+      } catch (err) {
+        logger.error("[ES] Paginated search failed, falling back to MongoDB:", err);
+      }
+    }
+
+    // ── MongoDB path (no search text, or ES fallback) ──
     const filterQuery = getProductFilters(filters, searchQuery);
 
     const pipeline: Document[] = [
@@ -147,6 +202,11 @@ const create = async (body: PostProduct) => {
   if (newProduct) {
     await syncFilterOptions();
     await invalidateProductCaches();
+
+    // Sync to Elasticsearch (fire-and-forget)
+    elasticsearchService.indexProduct(newProduct).catch(err =>
+      logger.error("[ES] Failed to index new product:", err)
+    );
   }
 
   return newProduct;
@@ -190,6 +250,11 @@ const update = async (id: string, body: PutProduct) => {
   await syncFilterOptions();
   await invalidateProductCaches(id);
 
+  // Sync to Elasticsearch (fire-and-forget)
+  elasticsearchService.updateProduct(result).catch(err =>
+    logger.error(`[ES] Failed to update product ${id}:`, err)
+  );
+
   return toResponse(result);
 };
 
@@ -208,6 +273,12 @@ const updateProductFlags = async (productId: string, flags: { isBestSeller?: boo
   if (!result) throw new ResponseError(404, messages.product.notFound);
 
   await invalidateProductCaches(productId);
+
+  // Sync to Elasticsearch (fire-and-forget)
+  elasticsearchService.updateProduct(result).catch(err =>
+    logger.error(`[ES] Failed to update product flags ${productId}:`, err)
+  );
+
   return toResponse(result);
 };
 
@@ -221,6 +292,12 @@ const updateProductDiscount = async (productId: string, discount: number) => {
   if (!result) throw new ResponseError(404, messages.product.notFound);
 
   await invalidateProductCaches(productId);
+
+  // Sync to Elasticsearch (fire-and-forget)
+  elasticsearchService.updateProduct(result).catch(err =>
+    logger.error(`[ES] Failed to update product discount ${productId}:`, err)
+  );
+
   return toResponse(result);
 };
 
@@ -233,6 +310,11 @@ const remove = async (id: string) => {
 
   await syncFilterOptions();
   await invalidateProductCaches(id);
+
+  // Remove from Elasticsearch (fire-and-forget)
+  elasticsearchService.deleteProduct(id).catch(err =>
+    logger.error(`[ES] Failed to delete product ${id}:`, err)
+  );
 
   return result;
 };

@@ -74,10 +74,16 @@ const updateImage = async (id: ObjectId, image: string, updatedAt: Date) => {
   );
 };
 
+const findByIds = async (ids: ObjectId[]): Promise<Product[]> => {
+  if (ids.length === 0) return []
+  return collection().find({ _id: { $in: ids } }).toArray() as Promise<Product[]>
+}
+
 export const productRepository = {
   findAll,
   aggregate,
   findById,
+  findByIds,
   findOne,
   findOneAndUpdate,
   findOneAndDelete,

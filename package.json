@@ -7,13 +7,15 @@
     "dev": "nodemon -r tsconfig-paths/register src/main.ts",
     "dev:services": "docker compose up -d",
     "dev:services:down": "docker compose down",
-    "dev:services:logs": "docker compose logs -f --tail=200"
+    "dev:services:logs": "docker compose logs -f --tail=200",
+    "es:reindex": "npx tsx -r tsconfig-paths/register src/core/services/elasticsearch/elasticsearch.reindex.ts"
   },
   "keywords": [],
   "author": "Christian Larry",
   "license": "ISC",
   "description": "REST API Aplikasi Penjualan dan Kebutuhan Keramik",
   "dependencies": {
+    "@elastic/elasticsearch": "^9.3.2",
     "@google/genai": "^1.28.0",
     "@pinecone-database/pinecone": "^6.1.2",
     "@types/sharp": "^0.31.1",

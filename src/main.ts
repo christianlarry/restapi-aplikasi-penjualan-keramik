@@ -3,7 +3,9 @@ import { app } from "@/app"
 import { connectToMongoDB, disconnectFromMongoDB } from "@/core/config/mongodb"
 import { logger } from "@/core/config/logger"
 import { disconnectRedis } from "@/core/config/redis"
+import { closeElasticsearch } from "@/core/config/elasticsearch"
 import chatRepository from "@/modules/recommendation/chat/chat.repository"
+import elasticsearchService from "@/core/services/elasticsearch/elasticsearch.service"
 
 const PORT = env.PORT || 3000
 
@@ -15,6 +17,11 @@ const start = async () => {
 
   // Ensure chat_sessions indexes (TTL + unique sessionId)
   await chatRepository.ensureIndexes()
+
+  // Ensure Elasticsearch index exists (idempotent, non-blocking on failure)
+  await elasticsearchService.ensureIndex().catch((err) => {
+    logger.warn("⚠️  Elasticsearch index setup failed (search will fall back to MongoDB):", err)
+  })
 
   server = app.listen(PORT, () => {
     logger.info(`Server up and running at http://localhost:${PORT}`)
@@ -44,7 +51,8 @@ const gracefulShutdown = async (signal: string) => {
       // We do this in parallel to speed up shutdown
       await Promise.all([
         disconnectFromMongoDB(),
-        disconnectRedis()
+        disconnectRedis(),
+        closeElasticsearch()
       ]);
 
       logger.info("All connections closed. Exiting process.");
